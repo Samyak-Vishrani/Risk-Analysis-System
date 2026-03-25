@@ -1,13 +1,7 @@
-import express from "express"
+import app from "./src/server.js";
 
-const app = express();
+// const PORT = 5001;
 
-app.use(express.json());
-
-app.get("/", (req, res) => {
-  res.send("Transaction Service Running");
-});
-
-app.listen(5001, () => {
-  console.log("Transaction Service running on port 5001");
+app.listen(process.env.TRANSACTION_SERVICE_PORT, () => {
+  console.log(`Transaction Service running on port ${process.env.TRANSACTION_SERVICE_PORT}`);
 });
