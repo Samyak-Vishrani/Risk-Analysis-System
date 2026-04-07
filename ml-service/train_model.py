@@ -138,13 +138,12 @@ NUMERIC_FEATURES = [
 ]
 
 CATEGORICAL_FEATURES = [
-    "currency", "merchant_category", "merchant_country",
-    "device_type",
+    "currency", "merchant_category", "merchant_country", "device_type", 
+    # "location",
 ]
 
 BINARY_FEATURES = [
-    "device_new", "device_week", "account_new",
-    "is_weekend", "is_late_night",
+    "device_new", "device_week", "account_new", "is_weekend", "is_late_night",
 ]
 
 def build_pipeline(class_weights):
