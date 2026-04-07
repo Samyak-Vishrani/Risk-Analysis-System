@@ -4,3 +4,7 @@ venv
 __pycache__
 dist
 build
+training.log
+fraud_model.pkl
+champion_meta.json
+metrics_history.json
