@@ -20,10 +20,6 @@ except FileNotFoundError:
     raise RuntimeError(f"Model file not found at {MODEL_PATH}. Train the model first.")
 
 
-CURRENCY_MAX = {
-    "USD": 5000, "INR": 200000, "EUR": 4000,
-    "GBP": 3500,  "JPY": 300000, "AED": 15000,
-}
 
 class TransactionInput(BaseModel):
     transaction_id: int
@@ -88,9 +84,9 @@ def get_top_factors() -> list[dict]:
 @app.get("/health")
 def health():
     return {
-        "status":        "ok",
+        "status": "ok",
         "model_version": MODEL_VERSION,
-        "model_path":    MODEL_PATH
+        "model_path": MODEL_PATH
     }
 
 @app.post("/predict")
@@ -100,7 +96,7 @@ def predict(transaction: TransactionInput):
 
         prob = float(model.predict_proba(input_df)[0][1])
         # prob = model.predict_proba(input_df)
-        print(prob)
+        # print(prob)
         risk_level = classify_risk(prob)
         action = get_action(risk_level)
 

@@ -65,7 +65,7 @@ def fetch_data(engine):
         t.transaction_id,
         t.amount,
         t.currency,
-        t.location,
+        # t.location,
         t.is_fraud,
         EXTRACT(HOUR FROM t.transaction_time)   AS tx_hour,
         EXTRACT(DOW  FROM t.transaction_time)   AS tx_dow,
@@ -263,8 +263,8 @@ def append_metrics(metrics):
     log.info(f"Metrics appended → {METRICS_LOG_PATH}")
 
 
-# change model only if it is aleast 0.5% better
-IMPROVEMENT_THRESHOLD = 0.005
+# change model only if it is aleast 0.2% better
+IMPROVEMENT_THRESHOLD = 0.002
 
 def load_champion_auc():
     if not os.path.exists(CHAMPION_META_PATH):
@@ -302,7 +302,7 @@ def main():
     engine.dispose()
 
     # df = feature_engineer(df)
-    df = df.drop(columns=["transaction_id"])
+    df = df.drop(columns=["transaction_id", "location"])
 
     X = df.drop(columns = ["is_fraud"])
     y = df["is_fraud"].astype(int)
