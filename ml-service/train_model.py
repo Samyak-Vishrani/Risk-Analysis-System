@@ -13,14 +13,14 @@ import joblib
 
 from sqlalchemy import create_engine
 
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
-    classification_report, roc_auc_score,
-    precision_score, recall_score, f1_score
+    roc_auc_score, precision_score, recall_score, f1_score
 )
 from sklearn.utils import class_weight
 
@@ -35,9 +35,10 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-MODEL_PATH = "fraud_model.pkl"
-METRICS_LOG_PATH = "metrics_history.json"
-CHAMPION_META_PATH = "champion_meta.json"
+BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "fraud_model.pkl")
+METRICS_LOG_PATH = os.path.join(BASE_DIR, "metrics_history.json")
+CHAMPION_META_PATH = os.path.join(BASE_DIR, "champion_meta.json")
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
@@ -103,31 +104,53 @@ CURRENCY_MAX = {
     "AED": 15000,
 }
 
-def feature_engineer(df):
-    # normalize amount based on max currency (keep in between 0 and 1)
-    df["amount_ratio"] = df.apply(
-        lambda r: r["amount"] / CURRENCY_MAX.get(r["currency"], 5000), axis = 1
-    ).clip(0, 1)
+# def feature_engineer(df):
+#     # normalize amount based on max currency (keep in between 0 and 1)
+#     df["amount_ratio"] = df.apply(
+#         lambda r: r["amount"] / CURRENCY_MAX.get(r["currency"], 5000), axis = 1
+#     ).clip(0, 1)
 
-    # how large is spend to income ratio
-    df["spend_to_income"] = (df["amount"] / df["customer_income"] + 1).clip(0, 1)
+#     # how large is spend to income ratio
+#     df["spend_to_income"] = (df["amount"] / (df["customer_income"] + 1)).clip(0, 1)
 
-    # how new is the device
-    df["device_new"]  = (df["device_age_days"]  <  1).astype(int)
-    df["device_week"] = (df["device_age_days"]  <  7).astype(int)
+#     # how new is the device
+#     df["device_new"]  = (df["device_age_days"]  <  1).astype(int)
+#     df["device_week"] = (df["device_age_days"]  <  7).astype(int)
 
-    # account newness
-    df["account_new"] = (df["account_age_days"] < 30).astype(int)
+#     # account newness
+#     df["account_new"] = (df["account_age_days"] < 30).astype(int)
 
-    # weekend flag
-    df["is_weekend"] = df["tx_dow"].isin([0, 6]).astype(int)
+#     # weekend flag
+#     df["is_weekend"] = df["tx_dow"].isin([0, 6]).astype(int)
 
-    # late-night flag (midnight–5am)
-    df["is_late_night"] = df["tx_hour"].between(0, 5).astype(int)
+#     # late-night flag (midnight–5am)
+#     df["is_late_night"] = df["tx_hour"].between(0, 5).astype(int)
 
-    df = df.drop(columns=["transaction_id"])
+#     df = df.drop(columns=["transaction_id"])
 
-    return df
+#     return df
+
+class FeatureEngineer(BaseEstimator, TransformerMixin):
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        X = X.copy()
+
+        X["amount_ratio"] = X.apply(
+            lambda r: r["amount"] / CURRENCY_MAX.get(r["currency"], 5000), axis=1
+        ).clip(0, 1)
+
+        # CHANGED: fixed formula — +1 should be inside denominator to avoid division issues
+        X["spend_to_income"] = (X["amount"] / (X["customer_income"] + 1)).clip(0, 1)
+
+        X["device_new"] = (X["device_age_days"]  <  1).astype(int)
+        X["device_week"] = (X["device_age_days"]  <  7).astype(int)
+        X["account_new"] = (X["account_age_days"] < 30).astype(int)
+        X["is_weekend"] = X["tx_dow"].isin([0, 6]).astype(int)
+        X["is_late_night"] = X["tx_hour"].between(0, 5).astype(int)
+
+        return X
 
 
 NUMERIC_FEATURES = [
@@ -156,9 +179,9 @@ def build_pipeline(class_weights):
     ])
 
     preprocessor = ColumnTransformer([
-        ("numeric", numeric_transformer, NUMERIC_FEATURES),
-        ("categorical", categorical_transformer, CATEGORICAL_FEATURES),
-        ("binary", "passthrough", BINARY_FEATURES),
+        ("num", numeric_transformer, NUMERIC_FEATURES),
+        ("cat", categorical_transformer, CATEGORICAL_FEATURES),
+        ("bin", "passthrough", BINARY_FEATURES),
     ])
 
     clf = RandomForestClassifier(
@@ -171,6 +194,7 @@ def build_pipeline(class_weights):
     )
 
     pipeline = Pipeline([
+        ("feature_engineer", FeatureEngineer()),
         ("preprocessor", preprocessor),
         ("classifier", clf),
     ])
@@ -277,8 +301,8 @@ def main():
     df = fetch_data(engine)
     engine.dispose()
 
-    df = feature_engineer(df)
-    print(df.head())
+    # df = feature_engineer(df)
+    df = df.drop(columns=["transaction_id"])
 
     X = df.drop(columns = ["is_fraud"])
     y = df["is_fraud"].astype(int)
