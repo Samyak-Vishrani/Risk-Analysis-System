@@ -13,6 +13,8 @@ import joblib
 
 from sqlalchemy import create_engine
 
+from feature_engineer import FeatureEngineer, CURRENCY_MAX
+
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
 from sklearn.pipeline import Pipeline
@@ -65,7 +67,6 @@ def fetch_data(engine):
         t.transaction_id,
         t.amount,
         t.currency,
-        # t.location,
         t.is_fraud,
         EXTRACT(HOUR FROM t.transaction_time)   AS tx_hour,
         EXTRACT(DOW  FROM t.transaction_time)   AS tx_dow,
@@ -95,14 +96,14 @@ def fetch_data(engine):
         exit()
 
 
-CURRENCY_MAX = {
-    "USD": 5000,
-    "INR": 200000,
-    "EUR": 4000,
-    "GBP": 3500, 
-    "JPY": 300000,
-    "AED": 15000,
-}
+# CURRENCY_MAX = {
+#     "USD": 5000,
+#     "INR": 200000,
+#     "EUR": 4000,
+#     "GBP": 3500, 
+#     "JPY": 300000,
+#     "AED": 15000,
+# }
 
 # def feature_engineer(df):
 #     # normalize amount based on max currency (keep in between 0 and 1)
@@ -130,27 +131,27 @@ CURRENCY_MAX = {
 
 #     return df
 
-class FeatureEngineer(BaseEstimator, TransformerMixin):
-    def fit(self, X, y=None):
-        return self
+# class FeatureEngineer(BaseEstimator, TransformerMixin):
+#     def fit(self, X, y=None):
+#         return self
 
-    def transform(self, X):
-        X = X.copy()
+#     def transform(self, X):
+#         X = X.copy()
 
-        X["amount_ratio"] = X.apply(
-            lambda r: r["amount"] / CURRENCY_MAX.get(r["currency"], 5000), axis=1
-        ).clip(0, 1)
+#         X["amount_ratio"] = X.apply(
+#             lambda r: r["amount"] / CURRENCY_MAX.get(r["currency"], 5000), axis=1
+#         ).clip(0, 1)
 
-        # CHANGED: fixed formula — +1 should be inside denominator to avoid division issues
-        X["spend_to_income"] = (X["amount"] / (X["customer_income"] + 1)).clip(0, 1)
+#         # CHANGED: fixed formula — +1 should be inside denominator to avoid division issues
+#         X["spend_to_income"] = (X["amount"] / (X["customer_income"] + 1)).clip(0, 1)
 
-        X["device_new"] = (X["device_age_days"]  <  1).astype(int)
-        X["device_week"] = (X["device_age_days"]  <  7).astype(int)
-        X["account_new"] = (X["account_age_days"] < 30).astype(int)
-        X["is_weekend"] = X["tx_dow"].isin([0, 6]).astype(int)
-        X["is_late_night"] = X["tx_hour"].between(0, 5).astype(int)
+#         X["device_new"] = (X["device_age_days"]  <  1).astype(int)
+#         X["device_week"] = (X["device_age_days"]  <  7).astype(int)
+#         X["account_new"] = (X["account_age_days"] < 30).astype(int)
+#         X["is_weekend"] = X["tx_dow"].isin([0, 6]).astype(int)
+#         X["is_late_night"] = X["tx_hour"].between(0, 5).astype(int)
 
-        return X
+#         return X
 
 
 NUMERIC_FEATURES = [
@@ -300,9 +301,11 @@ def main():
     engine = get_engine()
     df = fetch_data(engine)
     engine.dispose()
+    print(df.shape)
+    print(df.head())
 
     # df = feature_engineer(df)
-    df = df.drop(columns=["transaction_id", "location"])
+    df = df.drop(columns=["transaction_id"])
 
     X = df.drop(columns = ["is_fraud"])
     y = df["is_fraud"].astype(int)
@@ -330,6 +333,7 @@ def main():
 
     metrics = calc_metrics(pipeline, X_test, y_test, cv_scores)
     promoted = promote_model(pipeline, metrics)
+    log.info(f"Model saved to: {MODEL_PATH}")
     metrics["promoted"] = promoted
     append_metrics(metrics)
     log.info(f"Metrics: {json.dumps(metrics, indent=2)}")
