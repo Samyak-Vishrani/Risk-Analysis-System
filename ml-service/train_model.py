@@ -13,7 +13,7 @@ import joblib
 
 from sqlalchemy import create_engine
 
-from feature_engineer import FeatureEngineer, CURRENCY_MAX
+from feature_engineer import FeatureEngineer, ExtendedFeatureEngineer, CURRENCY_MAX, USD_RATES
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
@@ -25,6 +25,7 @@ from sklearn.metrics import (
     roc_auc_score, precision_score, recall_score, f1_score
 )
 from sklearn.utils import class_weight
+from xgboost import XGBClassifier
 
 
 logging.basicConfig(
@@ -36,6 +37,10 @@ logging.basicConfig(
     ]
 )
 log = logging.getLogger(__name__)
+eda_log = logging.getLogger("eda")
+eda_log.setLevel(logging.INFO)
+eda_log.addHandler(logging.FileHandler("eda_logs.txt"))
+eda_log.propagate = False
 
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "fraud_model.pkl")
@@ -142,7 +147,7 @@ def fetch_data(engine):
 #             lambda r: r["amount"] / CURRENCY_MAX.get(r["currency"], 5000), axis=1
 #         ).clip(0, 1)
 
-#         # CHANGED: fixed formula — +1 should be inside denominator to avoid division issues
+#         # CHANGED: fixed formula - +1 should be inside denominator to avoid division issues
 #         X["spend_to_income"] = (X["amount"] / (X["customer_income"] + 1)).clip(0, 1)
 
 #         X["device_new"] = (X["device_age_days"]  <  1).astype(int)
@@ -154,23 +159,117 @@ def fetch_data(engine):
 #         return X
 
 
-NUMERIC_FEATURES = [
-    "amount", "amount_ratio", "merchant_risk",
-    "customer_age", "customer_income", "spend_to_income",
-    "device_age_days", "account_age_days",
-    "tx_hour", "tx_dow",
-]
+# EDA
+def convert_to_usd(df):
+    df["amount_usd"] = df.apply(
+        lambda r: r["amount"] * USD_RATES.get(r["currency"], 1.0), axis=1
+    )
+    return df
 
-CATEGORICAL_FEATURES = [
-    "currency", "merchant_category", "merchant_country", "device_type", 
-    # "location",
-]
+def clean_data(df):
+    before = len(df)
 
-BINARY_FEATURES = [
-    "device_new", "device_week", "account_new", "is_weekend", "is_late_night",
-]
+    df = df.dropna()
+    df = df.drop_duplicates(subset=["transaction_id"])
 
-def build_pipeline(class_weights):
+    df = df[df["amount"] > 0]
+    df = df[df["customer_age"] >= 18]
+    df = df[df["customer_income"] > 0]
+    df = df[df["device_age_days"] >= 0]
+    df = df[df["account_age_days"] >= 0]
+
+    after = len(df)
+    log.info(f"Cleaning: {before:,} → {after:,} rows (removed {before - after:,})")
+    return df
+
+
+SKEW_THRESHOLD = 1.0
+def run_eda(df):
+    eda_log.info("=" * 60)
+    eda_log.info(f"EDA run at {datetime.utcnow().isoformat()}")
+    eda_log.info("=" * 60)
+
+    eda_log.info(f"Shape: {df.shape}")
+
+    missing = df.isnull().sum()
+    missing = missing[missing > 0]
+    if len(missing) == 0:
+        eda_log.info("Missing values: none")
+    else:
+        eda_log.info(f"Missing values:\n{missing.to_string()}")
+
+    legit_count = int((df["is_fraud"] == False).sum())
+    fraud_count = int((df["is_fraud"] == True).sum())
+    scale_pos_weight = legit_count / fraud_count
+    eda_log.info(f"Class distribution - legit: {legit_count:,} | fraud: {fraud_count:,}")
+    eda_log.info(f"Fraud rate: {df['is_fraud'].mean()*100:.2f}%")
+    eda_log.info(f"scale_pos_weight for XGBoost: {scale_pos_weight:.4f}")
+
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    numeric_cols = [c for c in numeric_cols if c not in ["is_fraud", "tx_hour", "tx_dow"]]
+
+    skewness = df[numeric_cols].skew().sort_values(ascending=False)
+    eda_log.info("\nSkewness of numeric features:")
+    for col, skew in skewness.items():
+        flag = " ← will log transform" if abs(skew) > SKEW_THRESHOLD else ""
+        eda_log.info(f"  {col:<25} skew: {skew:>8.4f}{flag}")
+
+    skewed_cols = skewness[abs(skewness) > SKEW_THRESHOLD].index.tolist()
+
+    # outlier thresholds - 95th percentile per currency on original amount
+    outlier_thresholds = {}
+    for currency in df["currency"].unique():
+        p95 = df.loc[df["currency"] == currency, "amount"].quantile(0.95)
+        outlier_thresholds[currency] = round(float(p95), 2)
+
+    eda_log.info("\n95th percentile thresholds per currency:")
+    for currency, threshold in outlier_thresholds.items():
+        eda_log.info(f"  {currency}: {threshold:,.2f}")
+
+    eda_log.info("\nCorrelation with is_fraud:")
+    correlations = (
+        df[numeric_cols + ["is_fraud"]]
+        .corr()["is_fraud"]
+        .drop("is_fraud")
+        .sort_values(ascending=False)
+    )
+    for col, corr in correlations.items():
+        eda_log.info(f"  {col:<25} corr: {corr:>8.4f}")
+
+    eda_log.info("\namount_usd stats by fraud label:")
+    stats = df.groupby("is_fraud")["amount_usd"].describe()
+    eda_log.info(f"\n{stats.to_string()}")
+
+    eda_log.info("=" * 60)
+
+    return {
+        "scale_pos_weight":   scale_pos_weight,
+        "skewed_cols":        skewed_cols,
+        "outlier_thresholds": outlier_thresholds,
+        "fraud_count":        fraud_count,
+        "legit_count":        legit_count,
+    }
+
+
+
+def build_pipeline(scale_pos_weight, skewed_cols, outlier_thresholds):
+    log_cols = [f"{col}_log" for col in skewed_cols]
+
+    numeric_features = [
+        "amount_usd", "amount_ratio", "merchant_risk",
+        "customer_age", "customer_income", "spend_to_income",
+        "device_age_days", "account_age_days",
+        "tx_hour", "tx_dow",
+    ] + log_cols
+
+    categorical_features = [
+        "currency", "merchant_category", "merchant_country", "device_type",
+    ]
+
+    binary_features = [
+        "device_new", "device_week", "account_new",
+        "is_weekend", "is_late_night", "is_high_amount",
+    ]
     numeric_transformer = Pipeline([
         ("scaler", StandardScaler()),
     ])
@@ -180,22 +279,29 @@ def build_pipeline(class_weights):
     ])
 
     preprocessor = ColumnTransformer([
-        ("num", numeric_transformer, NUMERIC_FEATURES),
-        ("cat", categorical_transformer, CATEGORICAL_FEATURES),
-        ("bin", "passthrough", BINARY_FEATURES),
+        ("num", numeric_transformer, numeric_features),
+        ("cat", categorical_transformer, categorical_features),
+        ("bin", "passthrough", binary_features),
     ])
 
-    clf = RandomForestClassifier(
+    clf = XGBClassifier(
         n_estimators=300,
-        max_depth=12,
-        min_samples_leaf=5,
-        class_weight=class_weights,
+        max_depth=6,
+        learning_rate=0.05,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        scale_pos_weight=scale_pos_weight,
+        eval_metric="auc",
         random_state=42,
         n_jobs=-1,
+        verbosity=0,
     )
 
     pipeline = Pipeline([
-        ("feature_engineer", FeatureEngineer()),
+        ("feature_engineer", ExtendedFeatureEngineer(
+            skewed_cols=skewed_cols,
+            outlier_thresholds=outlier_thresholds,
+        )),
         ("preprocessor", preprocessor),
         ("classifier", clf),
     ])
@@ -283,13 +389,13 @@ def promote_model(pipeline, metrics):
         with open(CHAMPION_META_PATH, "w") as f:
             json.dump(metrics, f, indent = 2)
         log.info(
-            f"NEW CHAMPION promoted — AUC {new_auc:.4f} "
+            f"NEW CHAMPION promoted - AUC {new_auc:.4f} "
             f"(was {champion_auc:.4f}) → {MODEL_PATH}"
         )
         return True
     else:
         log.info(
-            f"Model NOT promoted — AUC {new_auc:.4f} did not beat "
+            f"Model NOT promoted - AUC {new_auc:.4f} did not beat "
             f"champion {champion_auc:.4f} by >{IMPROVEMENT_THRESHOLD}"
         )
         return False
@@ -304,6 +410,18 @@ def main():
     print(df.shape)
     print(df.head())
 
+    df = clean_data(df)
+    df = convert_to_usd(df)
+
+    # EDA
+    eda_findings = run_eda(df)
+    scale_pos_weight = eda_findings["scale_pos_weight"]
+    skewed_cols = eda_findings["skewed_cols"]
+    outlier_thresholds = eda_findings["outlier_thresholds"]
+
+    log.info(f"EDA complete - skewed cols detected: {skewed_cols}")
+    log.info(f"scale_pos_weight: {scale_pos_weight:.4f}")
+
     # df = feature_engineer(df)
     df = df.drop(columns=["transaction_id"])
 
@@ -311,14 +429,9 @@ def main():
     y = df["is_fraud"].astype(int)
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
     log.info(f"Train: {len(X_train):,}  Test: {len(X_test):,}")
 
-    cw = class_weight.compute_class_weight(
-        "balanced", classes = np.array([0, 1]), y = y_train
-    )
-
-    pipeline = build_pipeline({0: cw[0], 1: cw[1]})
+    pipeline = build_pipeline(scale_pos_weight, skewed_cols, outlier_thresholds)
 
     log.info("Training Started")
     pipeline.fit(X_train, y_train)
@@ -336,6 +449,7 @@ def main():
     log.info(f"Model saved to: {MODEL_PATH}")
     metrics["promoted"] = promoted
     append_metrics(metrics)
+
     log.info(f"Metrics: {json.dumps(metrics, indent=2)}")
     log.info("Training Complete")
 

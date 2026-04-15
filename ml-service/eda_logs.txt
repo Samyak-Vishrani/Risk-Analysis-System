@@ -1,0 +1,74 @@
+============================================================
+EDA run at 2026-04-15T12:34:36.812454
+============================================================
+Shape: (172590, 14)
+Missing values: none
+Class distribution — legit: 141,908 | fraud: 30,682
+Fraud rate: 17.78%
+scale_pos_weight for XGBoost: 4.6251
+
+Skewness of numeric features:
+  merchant_risk             skew:   0.0626
+  account_age_days          skew:   0.0270
+  customer_age              skew:   0.0173
+  customer_income           skew:   0.0129
+  device_age_days           skew:   0.0120
+  transaction_id            skew:   0.0000
+
+95th percentile thresholds per currency:
+  USD: 4,747.37
+  AED: 14,245.29
+  INR: 189,224.38
+  EUR: 3,784.89
+
+Correlation with is_fraud:
+  merchant_risk             corr:   0.1114
+  amount                    corr:   0.0450
+  customer_age              corr:   0.0014
+  account_age_days          corr:   0.0004
+  transaction_id            corr:  -0.0001
+  customer_income           corr:  -0.0035
+  device_age_days           corr:  -0.0038
+
+amount_usd stats by fraud label:
+============================================================
+EDA run at 2026-04-15T12:40:34.626875
+============================================================
+Shape: (167048, 15)
+Missing values: none
+Class distribution — legit: 137,335 | fraud: 29,713
+Fraud rate: 17.79%
+scale_pos_weight for XGBoost: 4.6221
+
+Skewness of numeric features:
+  merchant_risk             skew:   0.0634
+  account_age_days          skew:   0.0296
+  customer_age              skew:   0.0172
+  device_age_days           skew:   0.0160
+  customer_income           skew:   0.0145
+  amount_usd                skew:   0.0114
+  transaction_id            skew:  -0.0002
+
+95th percentile thresholds per currency:
+  USD: 4,747.13
+  AED: 14,268.71
+  INR: 189,396.03
+  EUR: 3,786.30
+
+Correlation with is_fraud:
+  amount_usd                corr:   0.1529
+  merchant_risk             corr:   0.1114
+  amount                    corr:   0.0457
+  customer_age              corr:   0.0012
+  account_age_days          corr:   0.0005
+  transaction_id            corr:   0.0001
+  customer_income           corr:  -0.0039
+  device_age_days           corr:  -0.0043
+
+amount_usd stats by fraud label:
+
+             count         mean          std   min       25%      50%      75%      max
+is_fraud                                                                               
+False     137335.0  2384.441814  1432.463735  5.03  1143.165  2316.21  3597.70  4999.91
+True       29713.0  2960.359032  1378.466761  5.22  2002.270  3189.99  4116.23  5000.00
+============================================================
