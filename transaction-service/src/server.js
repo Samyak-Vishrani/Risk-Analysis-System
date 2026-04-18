@@ -19,8 +19,14 @@ app.get("/test-db", async (req, res) => {
   }
 });
 
-import transactionRoutes from "./routes/transactionRoutes.js";
+import transactionRoutes from "./routes/transaction.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
+import trendsRoutes from "./routes/trends.routes.js";
+import transactionRoutes from "./routes/transaction.routes.js";
 
 app.use("/api", transactionRoutes);
+app.use("/dashboard", dashboardRoutes);
+app.use("/dashboard/trends", trendsRoutes);
+app.use("/transactions", transactionRoutes);
 
 export default app;

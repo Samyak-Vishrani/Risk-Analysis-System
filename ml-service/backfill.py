@@ -8,7 +8,7 @@ import joblib
 import logging
 from sqlalchemy import create_engine, text
 
-# feature_engineer.py is in the same folder — import so joblib can resolve the class
+# feature_engineer.py is in the same folder - import so joblib can resolve the class
 from feature_engineer import FeatureEngineer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -72,7 +72,7 @@ def main():
     log.info(f"Found {total:,} unscored transactions")
 
     if total == 0:
-        log.info("Nothing to backfill — risk_scores is already complete")
+        log.info("Nothing to backfill - risk_scores is already complete")
         engine.dispose()
         return
 
@@ -107,7 +107,7 @@ def main():
         scored += len(rows)
         log.info(f"Progress: {scored:,} / {total:,}")
 
-    log.info(f"Backfill complete — {scored:,} transactions scored")
+    log.info(f"Backfill complete - {scored:,} transactions scored")
     engine.dispose()
 
 if __name__ == "__main__":

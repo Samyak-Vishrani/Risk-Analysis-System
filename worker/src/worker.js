@@ -5,6 +5,14 @@ import pool from "./db/db.js";
 const connection = new IORedis({ host: "127.0.0.1", port: 6379 });
 const ML_FASTAPI_URL = process.env.ML_FASTAPI_URL || "http://localhost:8000";
 
+const getAction = (risk_level) => {
+  return {
+    LOW: "ALLOW",
+    MEDIUM: "REVIEW",
+    HIGH: "REVIEW",
+    CRITICAL: "BLOCK"
+  }[risk_level];
+};
 
 const worker = new Worker(
   "transactionQueue",
@@ -64,14 +72,16 @@ const worker = new Worker(
     }
 
     const result = await mlResponse.json();
+    const action = getAction(result.risk_level);
+    const reviewed = action === "ALLOW";
 
     await pool.query(
-      `INSERT INTO risk_scores (transaction_id, fraud_probability, risk_level, scored_at)
-      VALUES ($1, $2, $3, NOW())`,
-      [transaction_id, result.fraud_probability, result.risk_level]
+      `INSERT INTO risk_scores (transaction_id, fraud_probability, risk_level, action, scored_at, reviewed)
+      VALUES ($1, $2, $3, $4, NOW(), $5)`,
+      [transaction_id, result.fraud_probability, result.risk_level, action, reviewed]
     );
 
-    console.log(`Transaction ${transaction_id} scored: ${result.fraud_probability} → ${result.risk_level}`);
+    console.log(`Transaction ${transaction_id} scored: ${result.fraud_probability} → ${result.risk_level} → ${action}`);
   
   },
   { connection }

@@ -43,14 +43,6 @@ def classify_risk(prob: float) -> str:
     if prob > 0.35: return "MEDIUM"
     return "LOW"
 
-def get_action(risk_level: str) -> str:
-    return {
-        "LOW": "ALLOW",
-        "MEDIUM": "REVIEW",
-        "HIGH": "REVIEW",
-        "CRITICAL": "BLOCK",
-    }[risk_level]
-
 
 def get_top_factors() -> list[dict]:
     try:
@@ -98,14 +90,11 @@ def predict(transaction: TransactionInput):
         # prob = model.predict_proba(input_df)
         # print(prob)
         risk_level = classify_risk(prob)
-        action = get_action(risk_level)
 
         return {
             "fraud_probability": round(prob, 4),
             # "fraud_probability": round(float(prob[0][1]), 4),
             "risk_level": risk_level,
-            "recommended_action": action,
-            "should_block": action == "BLOCK",
             "top_risk_factors": get_top_factors(),
             "transaction_id": transaction.transaction_id,
             "model_version": MODEL_VERSION,
