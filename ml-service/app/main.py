@@ -103,3 +103,51 @@ def predict(transaction: TransactionInput):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/model/info")
+def model_info():
+    try:
+        steps = [name for name, _ in model.steps]
+
+        # get feature importances from classifier
+        clf  = model.named_steps["classifier"]
+        prep = model.named_steps["preprocessor"]
+
+        ohe_names = (
+            prep.named_transformers_["cat"]
+                .named_steps["ohe"]
+                .get_feature_names_out(
+                    ["currency", "merchant_category", "merchant_country", "device_type"]
+                ).tolist()
+        )
+
+        numeric_features = [
+            "amount_usd", "amount_ratio", "merchant_risk",
+            "customer_age", "customer_income", "spend_to_income",
+            "device_age_days", "account_age_days", "tx_hour", "tx_dow",
+        ]
+        binary_features = [
+            "device_new", "device_week", "account_new",
+            "is_weekend", "is_late_night", "is_high_amount",
+        ]
+        all_features = numeric_features + ohe_names + binary_features
+
+        importances = clf.feature_importances_
+        top = sorted(
+            zip(all_features, importances),
+            key=lambda x: x[1],
+            reverse=True
+        )[:20]
+
+        return {
+            "model_version": MODEL_VERSION,
+            "model_path":    MODEL_PATH,
+            "pipeline_steps": steps,
+            "top_features":  [
+                {"feature": f, "importance": round(float(i), 4)}
+                for f, i in top
+            ],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
