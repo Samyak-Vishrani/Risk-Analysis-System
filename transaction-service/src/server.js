@@ -1,8 +1,14 @@
 import express from "express";
+import cors from "cors";
 import pool from "./db/db.js";
 
 const app = express();
 
+app.use(cors());
+// app.use(cors({
+//   origin: "http://localhost:5173",
+//   credentials: true
+// }));
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -19,17 +25,17 @@ app.get("/test-db", async (req, res) => {
   }
 });
 
-import transactionRoutes from "./routes/transaction.routes.js";
+// import transactionRoutes from "./routes/transaction.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import trendsRoutes from "./routes/trends.routes.js";
 import transactionRoutes from "./routes/transaction.routes.js";
-import merchantRoutes from "./routes/merchants.routes.js";
+import merchantRoutes from "./routes/merchant.routes.js";
 import customerRoutes from "./routes/customers.routes.js";
 import deviceRoutes from "./routes/devices.routes.js";
 import reviewRoutes from "./routes/reviews.routes.js";
 import geographyRoutes from "./routes/geography.routes.js";
 import modelRoutes from "./routes/model.routes.js";
-import alertRoutes from "./routes/alerts.routes.js";
+import alertRoutes from "./routes/alert.routes.js";
 
 app.use("/api", transactionRoutes);
 app.use("/dashboard", dashboardRoutes);

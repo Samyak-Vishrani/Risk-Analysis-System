@@ -25,7 +25,7 @@ export const getTopRiskCustomers = async (req, res) => {
             * 100.0 / NULLIF(COUNT(t.transaction_id), 0), 2
           ) AS fraud_rate_percent,
 
-          -- high risk count — what this ranking is based on
+          -- high risk count - what this ranking is based on
           COUNT(t.transaction_id) FILTER (
             WHERE r.risk_level IN ('HIGH', 'CRITICAL')
           ) AS high_risk_count,
@@ -177,7 +177,7 @@ export const getCustomersByAgeBracket = async (req, res) => {
 };
 
 // ─── GET /dashboard/customers/:id ────────────────────────────────────────
-// single customer — full profile + risk summary + recent transactions
+// single customer - full profile + risk summary + recent transactions
 
 export const getCustomerById = async (req, res) => {
   try {

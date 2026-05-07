@@ -2,11 +2,10 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
-@tailwind base;
+@import "tailwindcss";
+@config "../tailwind.config.js";
 
 @custom-variant dark (&:is(.dark *));
-@tailwind components;
-@tailwind utilities;
 
 :root {
   --text: #6b6375;

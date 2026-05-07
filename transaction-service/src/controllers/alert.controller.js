@@ -2,9 +2,9 @@ import pool from "../db/db.js";
 
 // ─── GET /alerts/critical ─────────────────────────────────────────────────
 // all unreviewed CRITICAL transactions for the urgent banner
-// sorted by fraud_probability descending — highest confidence fraud first
+// sorted by fraud_probability descending - highest confidence fraud first
 // optional ?limit= param (default 50, max 200)
-// kept intentionally lean — only columns needed for the alert banner
+// kept intentionally lean - only columns needed for the alert banner
 
 export const getCriticalAlerts = async (req, res) => {
   try {
@@ -63,7 +63,7 @@ export const getCriticalAlerts = async (req, res) => {
       [limit]
     );
 
-    // compute oldest unreviewed alert age — useful for SLA tracking
+    // compute oldest unreviewed alert age - useful for SLA tracking
     // if a CRITICAL alert has been sitting for hours that's a problem
     const oldestUnreviewed = result.rows.length > 0
       ? Math.max(...result.rows.map((r) => parseInt(r.unreviewed_for_minutes)))
@@ -98,7 +98,7 @@ export const getCriticalAlerts = async (req, res) => {
 // ─── GET /alerts/count ────────────────────────────────────────────────────
 // lightweight count for the notification badge
 // returns CRITICAL and HIGH unreviewed counts separately
-// no joins — hits only risk_scores for maximum speed
+// no joins - hits only risk_scores for maximum speed
 // this is called frequently by the frontend so must be as fast as possible
 
 export const getAlertsCount = async (req, res) => {

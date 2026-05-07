@@ -2,7 +2,7 @@ import express from "express";
 import {
   getCriticalAlerts,
   getAlertsCount,
-} from "../controllers/alerts.controller.js";
+} from "../controllers/alert.controller.js";
 
 const router = express.Router();
 

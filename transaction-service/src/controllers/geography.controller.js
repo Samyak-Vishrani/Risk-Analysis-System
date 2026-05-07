@@ -90,7 +90,7 @@ export const getByCountry = async (req, res) => {
       amount_at_risk_usd: parseFloat(row.amount_at_risk_usd || 0),
     }));
 
-    // global summary across all countries — useful for map legend scaling
+    // global summary across all countries - useful for map legend scaling
     const totalFraud = data.reduce((sum, row) => sum + row.fraud_count, 0);
     const totalTransactions = data.reduce((sum, row) => sum + row.total_transactions, 0);
     const totalAtRisk = data.reduce((sum, row) => sum + row.amount_at_risk_usd, 0);
@@ -104,7 +104,7 @@ export const getByCountry = async (req, res) => {
         total_fraud: totalFraud,
         total_at_risk_usd: parseFloat(totalAtRisk.toFixed(2)),
         highest_fraud_rate: highestFraudRate,
-        // highest fraud rate across all countries —
+        // highest fraud rate across all countries -
         // frontend uses this to scale the choropleth color intensity
       },
       count: data.length,

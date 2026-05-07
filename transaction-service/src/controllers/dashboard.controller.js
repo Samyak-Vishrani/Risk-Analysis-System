@@ -4,6 +4,58 @@ import pool from "../db/db.js";
 // Overview number cards -
 // total transactions, fraud count, fraud rate, total amount at risk in USD
 
+// export const getSummary = async (req, res) => {
+//   try {
+//     const result = await pool.query(`
+//       SELECT
+//         COUNT(t.transaction_id) AS total_transactions,
+//         COUNT(t.transaction_id) FILTER (WHERE t.is_fraud = true) AS total_fraud,
+//         ROUND(
+//           COUNT(t.transaction_id) FILTER (WHERE t.is_fraud = true)
+//           * 100.0 / NULLIF(COUNT(t.transaction_id), 0), 2
+//         ) AS fraud_rate_percent,
+//         ROUND(
+//           SUM(t.amount * CASE t.currency
+//             WHEN 'USD' THEN 1.0
+//             WHEN 'INR' THEN 0.012
+//             WHEN 'EUR' THEN 1.08
+//             WHEN 'GBP' THEN 1.27
+//             WHEN 'JPY' THEN 0.0067
+//             WHEN 'AED' THEN 0.27
+//             ELSE 1.0
+//           END) FILTER (WHERE t.is_fraud = true)::numeric, 2
+//         ) AS amount_at_risk_usd,
+//         ROUND(
+//           SUM(t.amount * CASE t.currency
+//             WHEN 'USD' THEN 1.0
+//             WHEN 'INR' THEN 0.012
+//             WHEN 'EUR' THEN 1.08
+//             WHEN 'GBP' THEN 1.27
+//             WHEN 'JPY' THEN 0.0067
+//             WHEN 'AED' THEN 0.27
+//             ELSE 1.0
+//           END)::numeric, 2
+//         ) AS total_volume_usd,
+//         COUNT(t.transaction_id) FILTER (
+//           WHERE t.transaction_time >= NOW() - INTERVAL '24 hours'
+//         ) AS transactions_last_24h,
+//         COUNT(t.transaction_id) FILTER (
+//           WHERE t.is_fraud = true
+//           AND   t.transaction_time >= NOW() - INTERVAL '24 hours'
+//         ) AS fraud_last_24h
+//       FROM transactions t
+//       LEFT JOIN risk_scores r ON r.transaction_id = t.transaction_id
+//     `);
+
+//     res.json({
+//       success: true,
+//       data: result.rows[0],
+//     });
+//   } catch (err) {
+//     console.error("getSummary error:", err.message);
+//     res.status(500).json({ success: false, error: err.message });
+//   }
+// };
 export const getSummary = async (req, res) => {
   try {
     const result = await pool.query(`
@@ -14,43 +66,50 @@ export const getSummary = async (req, res) => {
           COUNT(t.transaction_id) FILTER (WHERE t.is_fraud = true)
           * 100.0 / NULLIF(COUNT(t.transaction_id), 0), 2
         ) AS fraud_rate_percent,
-        ROUND(
-          SUM(t.amount * CASE t.currency
-            WHEN 'USD' THEN 1.0
-            WHEN 'INR' THEN 0.012
-            WHEN 'EUR' THEN 1.08
-            WHEN 'GBP' THEN 1.27
-            WHEN 'JPY' THEN 0.0067
-            WHEN 'AED' THEN 0.27
-            ELSE 1.0
-          END) FILTER (WHERE t.is_fraud = true)::numeric, 2
-        ) AS amount_at_risk_usd,
-        ROUND(
-          SUM(t.amount * CASE t.currency
-            WHEN 'USD' THEN 1.0
-            WHEN 'INR' THEN 0.012
-            WHEN 'EUR' THEN 1.08
-            WHEN 'GBP' THEN 1.27
-            WHEN 'JPY' THEN 0.0067
-            WHEN 'AED' THEN 0.27
-            ELSE 1.0
-          END)::numeric, 2
-        ) AS total_volume_usd,
+        ROUND(SUM(
+          t.amount * CASE t.currency
+            WHEN 'USD' THEN 1.0 WHEN 'INR' THEN 0.012
+            WHEN 'EUR' THEN 1.08 WHEN 'GBP' THEN 1.27
+            WHEN 'JPY' THEN 0.0067 WHEN 'AED' THEN 0.27
+            ELSE 1.0 END
+        ) FILTER (WHERE t.is_fraud = true)::numeric, 2) AS amount_at_risk_usd,
+        ROUND(SUM(
+          t.amount * CASE t.currency
+            WHEN 'USD' THEN 1.0 WHEN 'INR' THEN 0.012
+            WHEN 'EUR' THEN 1.08 WHEN 'GBP' THEN 1.27
+            WHEN 'JPY' THEN 0.0067 WHEN 'AED' THEN 0.27
+            ELSE 1.0 END
+        )::numeric, 2) AS total_volume_usd,
+
         COUNT(t.transaction_id) FILTER (
-          WHERE t.transaction_time >= NOW() - INTERVAL '24 hours'
-        ) AS transactions_last_24h,
+          WHERE t.transaction_time >= CURRENT_DATE
+        ) AS transactions_today,
         COUNT(t.transaction_id) FILTER (
-          WHERE t.is_fraud = true
-          AND   t.transaction_time >= NOW() - INTERVAL '24 hours'
-        ) AS fraud_last_24h
+          WHERE t.transaction_time >= CURRENT_DATE
+          AND t.is_fraud = true
+        ) AS fraud_today,
+
+        COUNT(t.transaction_id) FILTER (
+          WHERE t.transaction_time >= DATE_TRUNC('week', NOW())
+        ) AS transactions_this_week,
+        COUNT(t.transaction_id) FILTER (
+          WHERE t.transaction_time >= DATE_TRUNC('week', NOW())
+          AND t.is_fraud = true
+        ) AS fraud_this_week,
+
+        COUNT(t.transaction_id) FILTER (
+          WHERE t.transaction_time >= DATE_TRUNC('month', NOW())
+        ) AS transactions_this_month,
+        COUNT(t.transaction_id) FILTER (
+          WHERE t.transaction_time >= DATE_TRUNC('month', NOW())
+          AND t.is_fraud = true
+        ) AS fraud_this_month
+
       FROM transactions t
       LEFT JOIN risk_scores r ON r.transaction_id = t.transaction_id
     `);
 
-    res.json({
-      success: true,
-      data: result.rows[0],
-    });
+    res.json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error("getSummary error:", err.message);
     res.status(500).json({ success: false, error: err.message });

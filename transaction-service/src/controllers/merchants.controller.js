@@ -145,7 +145,7 @@ export const getMerchantsByCategory = async (req, res) => {
 };
 
 // ─── GET /dashboard/merchants/:id ────────────────────────────────────────
-// single merchant full breakdown —
+// single merchant full breakdown -
 // summary stats + recent transactions + risk level distribution
 
 export const getMerchantById = async (req, res) => {

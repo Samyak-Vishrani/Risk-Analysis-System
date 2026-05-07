@@ -33,7 +33,7 @@ export const getMetrics = async (req, res) => {
     if (!history) {
       return res.status(404).json({
         success: false,
-        error: "metrics_history.json not found — model has not been trained yet",
+        error: "metrics_history.json not found - model has not been trained yet",
       });
     }
 
@@ -87,7 +87,7 @@ export const getChampion = async (req, res) => {
     if (!champion) {
       return res.status(404).json({
         success: false,
-        error: "champion_meta.json not found — no champion model exists yet",
+        error: "champion_meta.json not found - no champion model exists yet",
       });
     }
 
@@ -118,7 +118,7 @@ export const getChampion = async (req, res) => {
 
 // ─── GET /model/features ──────────────────────────────────────────────────
 // top feature importances from the currently loaded model
-// fetched from FastAPI /model/info — model lives in Python not Node
+// fetched from FastAPI /model/info - model lives in Python not Node
 
 export const getFeatures = async (req, res) => {
   try {

@@ -43,7 +43,7 @@ export const getDevicesByAge = async (req, res) => {
           COUNT(t.transaction_id) FILTER (WHERE r.action = 'REVIEW') AS review_count,
           COUNT(t.transaction_id) FILTER (WHERE r.action = 'BLOCK') AS block_count,
 
-          -- device type breakdown — mobile vs desktop etc per age bracket
+          -- device type breakdown - mobile vs desktop etc per age bracket
           COUNT(t.transaction_id) FILTER (WHERE d.device_type = 'mobile') AS mobile_count,
           COUNT(t.transaction_id) FILTER (WHERE d.device_type = 'desktop') AS desktop_count,
           COUNT(t.transaction_id) FILTER (WHERE d.device_type = 'tablet') AS tablet_count
@@ -154,7 +154,7 @@ export const getTopRiskDevices = async (req, res) => {
             * 100.0 / NULLIF(COUNT(t.transaction_id), 0), 2
           ) AS fraud_rate_percent,
 
-          -- high risk count — ranking basis
+          -- high risk count - ranking basis
           COUNT(t.transaction_id) FILTER (
             WHERE r.risk_level IN ('HIGH', 'CRITICAL')
           ) AS high_risk_count,

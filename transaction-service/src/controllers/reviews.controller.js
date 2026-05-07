@@ -115,7 +115,7 @@ export const getPendingReviews = async (req, res) => {
 };
 
 // ─── GET /reviews/pending/count ───────────────────────────────────────────
-// lightweight count for the nav badge — no joins needed
+// lightweight count for the nav badge - no joins needed
 // returns total unreviewed + breakdown by action
 
 export const getPendingReviewsCount = async (req, res) => {
