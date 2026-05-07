@@ -5,7 +5,7 @@ export default {
     "./src/**/*.{js,jsx}",
   ],
 
-  darkMode: ["class"],
+  // darkMode: ["class"],
 
   theme: {
     extend: {

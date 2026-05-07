@@ -21,7 +21,7 @@ export default function App() {
         <div className="flex flex-col flex-1 overflow-hidden">
           <Topbar />
 
-          <main className="flex-1 overflow-y-auto p-6">
+          <main className="flex-1 overflow-y-auto p-6 text-white">
             <Routes>
               <Route path="/" element={<Navigate to="/overview" replace />} />
               <Route path="/overview" element={<Overview />} />
