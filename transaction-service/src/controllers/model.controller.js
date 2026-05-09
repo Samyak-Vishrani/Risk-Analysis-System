@@ -9,7 +9,7 @@ const ML_FASTAPI_URL = process.env.ML_FASTAPI_URL || "http://localhost:8000";
 
 // resolve paths to the ml-service files
 // adjust this path if your folder structure is different
-const ML_SERVICES_DIR = path.resolve(__dirname, "../../ml-service");
+const ML_SERVICES_DIR = path.resolve(__dirname, "../../../ml-service");
 const METRICS_LOG_PATH = path.join(ML_SERVICES_DIR, "metrics_history.json");
 const CHAMPION_META_PATH = path.join(ML_SERVICES_DIR, "champion_meta.json");
 

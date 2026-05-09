@@ -99,54 +99,134 @@ export const getTopRiskCustomers = async (req, res) => {
 
 export const getCustomersByAgeBracket = async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT
-          CASE
-            WHEN c.age BETWEEN 18 AND 25 THEN '18-25'
-            WHEN c.age BETWEEN 26 AND 35 THEN '26-35'
-            WHEN c.age BETWEEN 36 AND 45 THEN '36-45'
-            WHEN c.age BETWEEN 46 AND 55 THEN '46-55'
-            WHEN c.age BETWEEN 56 AND 65 THEN '56-65'
-            ELSE '65+'
-          END AS age_bracket,
+    // const result = await pool.query(
+    //   `SELECT
+    //       CASE
+    //         WHEN c.age BETWEEN 18 AND 25 THEN '18-25'
+    //         WHEN c.age BETWEEN 26 AND 35 THEN '26-35'
+    //         WHEN c.age BETWEEN 36 AND 45 THEN '36-45'
+    //         WHEN c.age BETWEEN 46 AND 55 THEN '46-55'
+    //         WHEN c.age BETWEEN 56 AND 65 THEN '56-65'
+    //         ELSE '65+'
+    //       END AS age_bracket,
 
-          COUNT(DISTINCT c.customer_id) AS customer_count,
-          COUNT(t.transaction_id) AS total_transactions,
-          COUNT(t.transaction_id) FILTER (WHERE t.is_fraud = true) AS fraud_count,
+    //       COUNT(DISTINCT c.customer_id) AS customer_count,
+    //       COUNT(t.transaction_id) AS total_transactions,
+    //       COUNT(t.transaction_id) FILTER (WHERE t.is_fraud = true) AS fraud_count,
+
+    //       ROUND(
+    //         COUNT(t.transaction_id) FILTER (WHERE t.is_fraud = true)
+    //         * 100.0 / NULLIF(COUNT(t.transaction_id), 0), 2
+    //       ) AS fraud_rate_percent,
+
+    //       ROUND(AVG(c.income)::numeric, 2) AS avg_income,
+    //       ROUND(AVG(r.fraud_probability)::numeric, 4) AS avg_fraud_probability,
+
+    //       -- action breakdown per bracket
+    //       COUNT(t.transaction_id) FILTER (WHERE r.action = 'ALLOW') AS allow_count,
+    //       COUNT(t.transaction_id) FILTER (WHERE r.action = 'REVIEW') AS review_count,
+    //       COUNT(t.transaction_id) FILTER (WHERE r.action = 'BLOCK') AS block_count,
+
+    //       -- risk level breakdown per bracket
+    //       COUNT(t.transaction_id) FILTER (WHERE r.risk_level = 'LOW') AS low_count,
+    //       COUNT(t.transaction_id) FILTER (WHERE r.risk_level = 'MEDIUM') AS medium_count,
+    //       COUNT(t.transaction_id) FILTER (WHERE r.risk_level = 'HIGH') AS high_count,
+    //       COUNT(t.transaction_id) FILTER (WHERE r.risk_level = 'CRITICAL') AS critical_count
+
+    //    FROM customers c
+    //    JOIN transactions t ON t.customer_id = c.customer_id
+    //    LEFT JOIN risk_scores r ON r.transaction_id = t.transaction_id
+    //    GROUP BY age_bracket
+    //    ORDER BY
+    //      CASE age_bracket
+    //        WHEN '18-25' THEN 1
+    //        WHEN '26-35' THEN 2
+    //        WHEN '36-45' THEN 3
+    //        WHEN '46-55' THEN 4
+    //        WHEN '56-65' THEN 5
+    //        ELSE 6
+    //      END`
+    // );
+
+    const result = await pool.query(`
+      WITH customer_brackets AS (
+          SELECT
+              c.customer_id,
+              c.age,
+              c.income,
+              t.transaction_id,
+              t.is_fraud,
+              r.fraud_probability,
+              r.action,
+              r.risk_level,
+
+              CASE
+                  WHEN c.age BETWEEN 18 AND 25 THEN '18-25'
+                  WHEN c.age BETWEEN 26 AND 35 THEN '26-35'
+                  WHEN c.age BETWEEN 36 AND 45 THEN '36-45'
+                  WHEN c.age BETWEEN 46 AND 55 THEN '46-55'
+                  WHEN c.age BETWEEN 56 AND 65 THEN '56-65'
+                  ELSE '65+'
+              END AS age_bracket
+
+          FROM customers c
+          JOIN transactions t ON t.customer_id = c.customer_id
+          LEFT JOIN risk_scores r ON r.transaction_id = t.transaction_id
+      )
+
+      SELECT
+          age_bracket,
+
+          COUNT(DISTINCT customer_id) AS customer_count,
+          COUNT(transaction_id) AS total_transactions,
+
+          COUNT(transaction_id)
+              FILTER (WHERE is_fraud = true) AS fraud_count,
 
           ROUND(
-            COUNT(t.transaction_id) FILTER (WHERE t.is_fraud = true)
-            * 100.0 / NULLIF(COUNT(t.transaction_id), 0), 2
+              COUNT(transaction_id)
+                  FILTER (WHERE is_fraud = true)
+              * 100.0 / NULLIF(COUNT(transaction_id), 0),
+              2
           ) AS fraud_rate_percent,
 
-          ROUND(AVG(c.income)::numeric, 2) AS avg_income,
-          ROUND(AVG(r.fraud_probability)::numeric, 4) AS avg_fraud_probability,
+          ROUND(AVG(income)::numeric, 2) AS avg_income,
+          ROUND(AVG(fraud_probability)::numeric, 4) AS avg_fraud_probability,
 
-          -- action breakdown per bracket
-          COUNT(t.transaction_id) FILTER (WHERE r.action = 'ALLOW') AS allow_count,
-          COUNT(t.transaction_id) FILTER (WHERE r.action = 'REVIEW') AS review_count,
-          COUNT(t.transaction_id) FILTER (WHERE r.action = 'BLOCK') AS block_count,
+          COUNT(transaction_id)
+              FILTER (WHERE action = 'ALLOW') AS allow_count,
 
-          -- risk level breakdown per bracket
-          COUNT(t.transaction_id) FILTER (WHERE r.risk_level = 'LOW') AS low_count,
-          COUNT(t.transaction_id) FILTER (WHERE r.risk_level = 'MEDIUM') AS medium_count,
-          COUNT(t.transaction_id) FILTER (WHERE r.risk_level = 'HIGH') AS high_count,
-          COUNT(t.transaction_id) FILTER (WHERE r.risk_level = 'CRITICAL') AS critical_count
+          COUNT(transaction_id)
+              FILTER (WHERE action = 'REVIEW') AS review_count,
 
-       FROM customers c
-       JOIN transactions t ON t.customer_id = c.customer_id
-       LEFT JOIN risk_scores r ON r.transaction_id = t.transaction_id
-       GROUP BY age_bracket
-       ORDER BY
-         CASE age_bracket
-           WHEN '18-25' THEN 1
-           WHEN '26-35' THEN 2
-           WHEN '36-45' THEN 3
-           WHEN '46-55' THEN 4
-           WHEN '56-65' THEN 5
-           ELSE 6
-         END`
-    );
+          COUNT(transaction_id)
+              FILTER (WHERE action = 'BLOCK') AS block_count,
+
+          COUNT(transaction_id)
+              FILTER (WHERE risk_level = 'LOW') AS low_count,
+
+          COUNT(transaction_id)
+              FILTER (WHERE risk_level = 'MEDIUM') AS medium_count,
+
+          COUNT(transaction_id)
+              FILTER (WHERE risk_level = 'HIGH') AS high_count,
+
+          COUNT(transaction_id)
+              FILTER (WHERE risk_level = 'CRITICAL') AS critical_count
+
+      FROM customer_brackets
+      GROUP BY age_bracket
+
+      ORDER BY
+          CASE age_bracket
+              WHEN '18-25' THEN 1
+              WHEN '26-35' THEN 2
+              WHEN '36-45' THEN 3
+              WHEN '46-55' THEN 4
+              WHEN '56-65' THEN 5
+              ELSE 6
+          END
+      `);
 
     const data = result.rows.map((row) => ({
       ...row,

@@ -8,6 +8,7 @@ import {
   Smartphone,
   Globe,
   Brain,
+  TrendingUp
 } from "lucide-react";
 
 //  RISK 
@@ -93,6 +94,11 @@ export const NAV_ITEMS = [
     label: "Transactions",
     href:  "/transactions",
     icon:  ArrowLeftRight,
+  },
+  { 
+    label: "Trends",
+    href: "/trends",
+    icon: TrendingUp
   },
   {
     label: "Alerts",
