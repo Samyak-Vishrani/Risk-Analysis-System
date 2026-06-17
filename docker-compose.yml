@@ -1,0 +1,125 @@
+# Usage:
+#   docker-compose up --build        (start all services)
+#   docker-compose up -d             (detached mode)
+#   docker-compose down -v           (stop & remove volumes)
+
+services:
+
+  # Infrastructure 
+
+  redis:
+    image: redis:7-alpine
+    container_name: risk-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Application Services ──────────────────────────────────────
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/api-gateway.Dockerfile
+    container_name: risk-api-gateway
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      DB_HOST: host.docker.internal
+      DB_PORT: 5432
+      DB_NAME: risk_platform
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-dbmsInFormati0N}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  transaction-service:
+    build:
+      context: .
+      dockerfile: docker/transaction-service.Dockerfile
+    container_name: risk-transaction-service
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: 5432
+      DB_NAME: risk_platform
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-dbmsInFormati0N}
+      TRANSACTION_SERVICE_PORT: 5001
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NODE_ENV: production
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    container_name: risk-worker
+    restart: unless-stopped
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: 5432
+      DB_NAME: risk_platform
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-dbmsInFormati0N}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ML_FASTAPI_URL: http://ml-service:8000
+      NODE_ENV: production
+    depends_on:
+      redis:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+
+  ml-service:
+    build:
+      context: .
+      dockerfile: docker/ml-service.Dockerfile
+    container_name: risk-ml-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: 5432
+      DB_NAME: risk_platform
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-dbmsInFormati0N}
+      MODEL_PATH: /app/fraud_model.pkl
+      MODEL_VERSION: "1.0.0"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        VITE_API_URL: http://localhost:5001
+    container_name: risk-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - transaction-service
+      - api-gateway
+
+# Volumes
+
+volumes:
+  redis_data:
+    driver: local

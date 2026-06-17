@@ -1,4 +1,4 @@
-import { formatUSD, formatPercent, formatNumber, formatTimeAgo } from "@/lib/utils";
+import { formatUSD, formatPercent, formatNumber, formatTimeAgo, getRiskColor } from "@/lib/utils";
 import { RISK_COLORS } from "@/constants";
 import RiskBadge from "@/components/transactions/RiskBadge";
 import { Smartphone, Monitor, Tablet } from "lucide-react";

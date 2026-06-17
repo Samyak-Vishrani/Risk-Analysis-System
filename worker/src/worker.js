@@ -2,7 +2,11 @@ import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import pool from "./db/db.js";
 
-const connection = new IORedis({ host: "127.0.0.1", port: 6379 });
+const connection = new IORedis({ 
+  host: process.env.REDIS_HOST || "127.0.0.1", 
+  port: parseInt(process.env.REDIS_PORT || "6379"),
+  maxRetriesPerRequest: null
+});
 const ML_FASTAPI_URL = process.env.ML_FASTAPI_URL || "http://localhost:8000";
 
 const getAction = (risk_level) => {

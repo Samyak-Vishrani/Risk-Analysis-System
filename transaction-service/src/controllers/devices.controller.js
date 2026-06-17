@@ -51,13 +51,25 @@ export const getDevicesByAge = async (req, res) => {
        FROM devices d
        JOIN transactions t ON t.device_id = d.device_id
        LEFT JOIN risk_scores r ON r.transaction_id = t.transaction_id
-       GROUP BY device_age_bracket
+       GROUP BY
+         CASE
+           WHEN EXTRACT(DAY FROM (t.transaction_time - d.registered_at)) < 1
+             THEN 'same-day'
+           WHEN EXTRACT(DAY FROM (t.transaction_time - d.registered_at)) < 7
+             THEN '1-7 days'
+           WHEN EXTRACT(DAY FROM (t.transaction_time - d.registered_at)) < 30
+             THEN '7-30 days'
+           ELSE 'older than 30 days'
+         END
        ORDER BY
-         CASE device_age_bracket
-           WHEN 'same-day' THEN 1
-           WHEN '1-7 days' THEN 2
-           WHEN '7-30 days' THEN 3
-           WHEN 'older than 30 days' THEN 4
+         CASE
+           WHEN EXTRACT(DAY FROM (t.transaction_time - d.registered_at)) < 1
+             THEN 1
+           WHEN EXTRACT(DAY FROM (t.transaction_time - d.registered_at)) < 7
+             THEN 2
+           WHEN EXTRACT(DAY FROM (t.transaction_time - d.registered_at)) < 30
+             THEN 3
+           ELSE 4
          END`
     );
 

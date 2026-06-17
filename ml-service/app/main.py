@@ -1,9 +1,15 @@
+import sys
+import os
+
+# Ensure the app/ directory is on the Python path so the pickled model
+# can resolve the `feature_engineer` module it was trained with.
+sys.path.insert(0, os.path.dirname(__file__))
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from datetime import datetime
 import joblib
 import pandas as pd
-import os
 
 app = FastAPI(
     title="Fraud Detection ML Service",

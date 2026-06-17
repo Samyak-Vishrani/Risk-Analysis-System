@@ -30,7 +30,7 @@ export default function App() {
               <Route path="/trends" element={<Trends />} />
               <Route path="/merchants" element={<Merchants />} />
               <Route path="/customers" element={<Customers />} />
-              <Route path="/devices" element={<Devices />} />
+              {/* <Route path="/devices" element={<Devices />} /> */}
               <Route path="/geography" element={<Geography />} />
               <Route path="/model" element={<Model />} />
               <Route path="/alerts" element={<Alerts />} />
